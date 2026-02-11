@@ -2,74 +2,157 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Medalje-oversikt</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medalje-kontroll</title>
     <style>
-        body { font-family: sans-serif; max-width: 700px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        :root {
+            --gold: #f1c40f;
+            --silver: #bdc3c7;
+            --bronze: #cd7f32;
+            --success: #27ae60;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: #f4f7f6;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 { text-align: center; color: #333; margin-top: 0; }
+        
+        .input-group { margin-bottom: 20px; }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: bold; 
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Små farge-indikatorer ved siden av teksten */
+        label::before {
+            content: "";
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .lbl-gull::before { background: var(--gold); }
+        .lbl-solv::before { background: var(--silver); }
+        .lbl-bronse::before { background: var(--bronze); }
+
+        input { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 1.2em; /* Større tekst er lettere å lese og endre på mobil */
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            -webkit-appearance: none; /* Fjerner default styling på iOS */
+        }
+
+        input:focus { border-color: #3498db; outline: none; }
+
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            background: var(--success); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer; 
+            transition: background 0.3s;
+            touch-action: manipulation; /* Bedre respons på berøring */
+        }
+
+        button:active { background: #1e8449; transform: scale(0.98); }
         button:disabled { background: #ccc; }
-        #status { margin-top: 15px; font-size: 0.9em; color: #555; }
+
+        #status { 
+            margin-top: 20px; 
+            text-align: center;
+            font-size: 0.95em; 
+            color: #666;
+            min-height: 1.2em;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Oppdater Medaljer</h2>
-    
-    <div class="input-group">
-        <label>Gull:</label>
-        <input type="number" id="gull">
-    </div>
-    <div class="input-group">
-        <label>Sølv:</label>
-        <input type="number" id="solv">
-    </div>
-    <div class="input-group">
-        <label>Bronse:</label>
-        <input type="number" id="bronse">
-    </div>
+    <div class="card">
+        <h2>Medaljeoversikt</h2>
+        
+        <div class="input-group">
+            <label class="lbl-gull">Gull</label>
+            <input type="number" id="gull" pattern="\d*">
+        </div>
+        <div class="input-group">
+            <label class="lbl-solv">Sølv</label>
+            <input type="number" id="solv" pattern="\d*">
+        </div>
+        <div class="input-group">
+            <label class="lbl-bronse">Bronse</label>
+            <input type="number" id="bronse" pattern="\d*">
+        </div>
 
-    <button id="saveBtn">Lagre til GitHub</button>
-    <div id="status">Laster nåværende tall...</div>
+        <button id="saveBtn">Oppdater GitHub</button>
+        <div id="status">Laster...</div>
+    </div>
 
     <script>
-        // --- KONFIGURASJON ---
         const GIST_ID = '94059e011ad70a4a95e0be96a8da1c7d';
-        const GITHUB_TOKEN = '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';
-        const FILNAVN = 'medaljer.json'; // Navnet på filen inne i Gisten
+        const GITHUB_TOKEN = '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'; 
+        const FILNAVN = 'medaljer.json';
 
-        const gullInput = document.getElementById('gull');
-        const solvInput = document.getElementById('solv');
-        const bronseInput = document.getElementById('bronse');
+        const inputs = {
+            gull: document.getElementById('gull'),
+            solv: document.getElementById('solv'),
+            bronse: document.getElementById('bronse')
+        };
         const saveBtn = document.getElementById('saveBtn');
         const statusDiv = document.getElementById('status');
 
-        // 1. HENT DATA NÅR SIDEN ÅPNES
         async function fetchMedals() {
             try {
                 const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+                if (!response.ok) throw new Error("Kunne ikke kontakte GitHub");
                 const data = await response.json();
                 const content = JSON.parse(data.files[FILNAVN].content);
                 
-                gullInput.value = content.gull;
-                solvInput.value = content.solv;
-                bronseInput.value = content.bronse;
-                statusDiv.innerText = "Data hentet fra GitHub.";
+                inputs.gull.value = content.gull;
+                inputs.solv.value = content.solv;
+                inputs.bronse.value = content.bronse;
+                statusDiv.innerText = "✅ Tilkoblet";
             } catch (err) {
-                statusDiv.innerText = "Feil ved henting: " + err.message;
+                statusDiv.innerText = "❌ Feil: " + err.message;
             }
         }
 
-        // 2. OPPDATER DATA (PATCH)
         saveBtn.onclick = async () => {
             saveBtn.disabled = true;
-            statusDiv.innerText = "Lagrer...";
+            statusDiv.innerText = "⏳ Lagrer endringer...";
 
             const nyttInnhold = {
-                gull: parseInt(gullInput.value),
-                solv: parseInt(solvInput.value),
-                bronse: parseInt(bronseInput.value)
+                gull: parseInt(inputs.gull.value) || 0,
+                solv: parseInt(inputs.solv.value) || 0,
+                bronse: parseInt(inputs.bronse.value) || 0
             };
 
             try {
@@ -80,21 +163,19 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        files: {
-                            [FILNAVN]: {
-                                content: JSON.stringify(nyttInnhold, null, 2)
-                            }
-                        }
+                        files: { [FILNAVN]: { content: JSON.stringify(nyttInnhold, null, 2) } }
                     })
                 });
 
                 if (response.ok) {
-                    statusDiv.innerText = "Suksess! Gisten er oppdatert.";
+                    statusDiv.style.color = "green";
+                    statusDiv.innerText = "🎉 Medaljer oppdatert!";
+                    setTimeout(() => { statusDiv.innerText = "✅ Tilkoblet"; statusDiv.style.color = "#666"; }, 3000);
                 } else {
-                    statusDiv.innerText = "Kunne ikke lagre. Sjekk token/ID.";
+                    throw new Error("GitHub nektet oppdatering");
                 }
             } catch (err) {
-                statusDiv.innerText = "Feil: " + err.message;
+                statusDiv.innerText = "❌ Feil: " + err.message;
             } finally {
                 saveBtn.disabled = false;
             }
@@ -103,5 +184,4 @@
         fetchMedals();
     </script>
 </body>
-
 </html>
